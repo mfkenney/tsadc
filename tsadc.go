@@ -48,7 +48,7 @@ func send_msg(conn net.Conn, buf []byte, reply interface{}) error {
 }
 
 // NewAdc returns a new Adc with the specified bit-width and gain value
-func NewAdc(base uint32, chans []uint, bits, gain uint) (*Adc, error) {
+func NewAdc(base uint32, an_sel uint32, chans []uint, bits, gain uint) (*Adc, error) {
 	bits_val, ok := adc_bits[bits]
 	if !ok {
 		return nil, fmt.Errorf("Invalid bits setting: %d", bits)
@@ -77,7 +77,7 @@ func NewAdc(base uint32, chans []uint, bits, gain uint) (*Adc, error) {
 	// Build the message to set the configuration register
 	buf, _ := tsctl.PokeMsg(adc.baseaddr+cfgreg,
 		16,
-		uint32(0xad10|bits_val|gain_val))
+		uint32(0xad10|an_sel|bits_val|gain_val))
 
 	// Send the message
 	err = send_msg(conn, buf, &reply)
@@ -100,12 +100,12 @@ func NewAdc(base uint32, chans []uint, bits, gain uint) (*Adc, error) {
 
 // Version of NewAdc for the TS-4200 CPU board
 func NewTs4200Adc(chans []uint, bits, gain uint) (*Adc, error) {
-	return NewAdc(ts4200_base, chans, bits, gain)
+	return NewAdc(ts4200_base, 0x10, chans, bits, gain)
 }
 
 // Version of NewAdc for the TS-4800 CPU board
 func NewTs4800Adc(chans []uint, bits, gain uint) (*Adc, error) {
-	return NewAdc(ts4800_base, chans, bits, gain)
+	return NewAdc(ts4800_base, 0x0, chans, bits, gain)
 }
 
 // ReadChan returns the A/D value from the specified channel
@@ -114,8 +114,9 @@ func (adc *Adc) ReadChan(c uint16) (int16, error) {
 		return 0, fmt.Errorf("Invalid channel: %d", c)
 	}
 
+	var offset uint32 = 2 * (uint32(c) - 1)
 	var reply tsctl.ScalarReply
-	buf, _ := tsctl.PeekMsg(adc.baseaddr+datareg, 16)
+	buf, _ := tsctl.PeekMsg(adc.baseaddr+datareg+offset, 16)
 	err := send_msg(adc.conn, buf, &reply)
 	if err != nil {
 		return 0, err
