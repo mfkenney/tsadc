@@ -8,19 +8,21 @@ import (
 	"net"
 )
 
-type Adc struct {
-	conn       net.Conn
-	baseaddr   uint32
-	chans      uint16
-	max_counts int32
-}
-
 // Base address is relative to the SYSCON bus
 const ts4200_base uint32 = 0x80
 const ts4800_base uint32 = 0x6000
 const cfgreg uint32 = 0
 const maskreg uint32 = 2
 const datareg uint32 = 4
+const max_chans = 6
+
+type Adc struct {
+	conn       net.Conn
+	baseaddr   uint32
+	chans      uint16
+	max_counts int32
+	max_volts  [max_chans]float32
+}
 
 var adc_gain = map[uint]uint32{
 	0: 0,
@@ -64,8 +66,8 @@ func NewAdc(base uint32, an_sel uint32, chans []uint, bits, gain uint) (*Adc, er
 	}
 
 	adc := Adc{baseaddr: base, conn: conn}
-
 	adc.max_counts = 1 << (bits - 1)
+	adc.max_volts = [max_chans]float32{2.048, 2.048, 10.24, 10.24, 10.24, 10.24}
 
 	// Set the channel mask
 	for _, c := range chans {
@@ -109,7 +111,7 @@ func NewTs4800Adc(chans []uint, bits, gain uint) (*Adc, error) {
 }
 
 // ReadChan returns the A/D value from the specified channel
-func (adc *Adc) ReadChan(c uint16) (int16, error) {
+func (adc *Adc) ReadCounts(c uint16) (int16, error) {
 	if (adc.chans & (1 << (c - 1))) == 0 {
 		return 0, fmt.Errorf("Invalid channel: %d", c)
 	}
@@ -124,7 +126,11 @@ func (adc *Adc) ReadChan(c uint16) (int16, error) {
 	return int16(reply.Value), nil
 }
 
-// ToVolts converts an A/D value from counts to volts
-func (adc *Adc) ToVolts(val int16) float32 {
-	return float32(val) * 10.24 / float32(adc.max_counts)
+// ReadVolts returns the A/D value in volts
+func (adc *Adc) ReadVolts(c uint16) (float32, error) {
+	val, err := adc.ReadCounts(c)
+	if err != nil {
+		return 0., err
+	}
+	return float32(val) * adc.max_volts[c-1] / float32(adc.max_counts), nil
 }
