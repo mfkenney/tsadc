@@ -19,7 +19,7 @@ const max_chans = 6
 type Adc struct {
 	conn       net.Conn
 	baseaddr   uint32
-	chans      uint16
+	chans      uint
 	max_counts int32
 	max_volts  [max_chans]float32
 }
@@ -44,7 +44,7 @@ func send_msg(conn net.Conn, buf []byte, reply interface{}) error {
 	}
 
 	// Read the reply
-	err = tsctl.UnpackReply(conn, &reply)
+	err = tsctl.UnpackReply(conn, reply)
 
 	return err
 }
@@ -111,7 +111,7 @@ func NewTs4800Adc(chans []uint, bits, gain uint) (*Adc, error) {
 }
 
 // ReadChan returns the A/D value from the specified channel
-func (adc *Adc) ReadCounts(c uint16) (int16, error) {
+func (adc *Adc) ReadCounts(c uint) (int16, error) {
 	if (adc.chans & (1 << (c - 1))) == 0 {
 		return 0, fmt.Errorf("Invalid channel: %d", c)
 	}
@@ -127,7 +127,7 @@ func (adc *Adc) ReadCounts(c uint16) (int16, error) {
 }
 
 // ReadVolts returns the A/D value in volts
-func (adc *Adc) ReadVolts(c uint16) (float32, error) {
+func (adc *Adc) ReadVolts(c uint) (float32, error) {
 	val, err := adc.ReadCounts(c)
 	if err != nil {
 		return 0., err
