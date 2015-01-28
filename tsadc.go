@@ -8,7 +8,7 @@ import (
 	"net"
 )
 
-// Base address is relative to the SYSCON bus
+// Base address is relative to the FPGA
 const ts4200_base uint32 = 0x80
 const ts4800_base uint32 = 0x6000
 const cfgreg uint32 = 0
@@ -24,12 +24,15 @@ type Adc struct {
 	max_volts  [max_chans]float32
 }
 
+// Map gain multipliers to register setting
 var adc_gain = map[uint]uint32{
 	0: 0,
 	2: 1,
 	4: 2,
 	8: 3,
 }
+
+// Map sample size to register setting
 var adc_bits = map[uint]uint32{
 	12: 0,
 	14: (1 << 2),
@@ -50,7 +53,9 @@ func send_msg(conn net.Conn, buf []byte, reply interface{}) error {
 }
 
 // NewAdc returns a new Adc with the specified bit-width and gain value
-func NewAdc(base uint32, an_sel uint32, chans []uint, bits, gain uint) (*Adc, error) {
+func NewAdc(base uint32, an_sel uint32,
+	chans []uint, bits, gain uint) (*Adc, error) {
+
 	bits_val, ok := adc_bits[bits]
 	if !ok {
 		return nil, fmt.Errorf("Invalid bits setting: %d", bits)
@@ -87,6 +92,7 @@ func NewAdc(base uint32, an_sel uint32, chans []uint, bits, gain uint) (*Adc, er
 		return nil, err
 	}
 
+	// Build a message toset the channel-mask register
 	buf, _ = tsctl.PokeMsg(adc.baseaddr+maskreg,
 		16,
 		uint32(adc.chans))
