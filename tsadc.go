@@ -79,7 +79,7 @@ func NewAdc(base uint32, an_sel uint32, chans []uint, bits, gain uint) (*Adc, er
 	// Build the message to set the configuration register
 	buf, _ := tsctl.PokeMsg(adc.baseaddr+cfgreg,
 		16,
-		uint32(0xad10|an_sel|bits_val|gain_val))
+		uint32(an_sel|bits_val|gain_val))
 
 	// Send the message
 	err = send_msg(conn, buf, &reply)
