@@ -3,7 +3,7 @@
 package tsadc
 
 import (
-	"apl.uw.edu/mikek/tsctl"
+	"bitbucket.org/mfkenney/tsctl-client"
 	"fmt"
 	"net"
 )
