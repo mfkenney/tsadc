@@ -113,7 +113,7 @@ func NewTs4200Adc(chans []uint, bits, gain uint) (*Adc, error) {
 
 // Version of NewAdc for the TS-4800 CPU board
 func NewTs4800Adc(chans []uint, bits, gain uint) (*Adc, error) {
-	return NewAdc(ts4800_base, 0x0, chans, bits, gain)
+	return NewAdc(ts4800_base, 0x10, chans, bits, gain)
 }
 
 // ReadChan returns the A/D value from the specified channel
