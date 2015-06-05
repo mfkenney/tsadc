@@ -116,6 +116,13 @@ func NewTs4800Adc(chans []uint, bits, gain uint) (*Adc, error) {
 	return NewAdc(ts4800_base, 0x10, chans, bits, gain)
 }
 
+func (adc *Adc) Reopen() error {
+	var err error
+	adc.conn.Close()
+	adc.conn, err = net.Dial("tcp", "localhost:5001")
+	return err
+}
+
 // ReadChan returns the A/D value from the specified channel
 func (adc *Adc) ReadCounts(c uint) (int16, error) {
 	if (adc.chans & (1 << (c - 1))) == 0 {
