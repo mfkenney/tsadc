@@ -3,9 +3,10 @@
 package tsadc
 
 import (
-	"bitbucket.org/mfkenney/tsctl-client"
+	"apl.uw.edu/mikek/tsctl"
 	"fmt"
 	"net"
+	"time"
 )
 
 // Base address is relative to the FPGA
@@ -18,6 +19,7 @@ const max_chans = 6
 
 type Adc struct {
 	conn       net.Conn
+	timeout    time.Duration
 	baseaddr   uint32
 	chans      uint
 	max_counts int32
@@ -39,8 +41,10 @@ var adc_bits = map[uint]uint32{
 	16: (2 << 2),
 }
 
-func send_msg(conn net.Conn, buf []byte, reply interface{}) error {
+func send_msg(conn net.Conn, buf []byte, deadline time.Time,
+	reply interface{}) error {
 	// Send the message
+	conn.SetDeadline(deadline)
 	_, err := conn.Write(buf)
 	if err != nil {
 		return err
@@ -65,12 +69,17 @@ func NewAdc(base uint32, an_sel uint32,
 		return nil, fmt.Errorf("Invalid gain setting: %d", gain)
 	}
 
-	conn, err := net.Dial("tcp", "localhost:5001")
+	timeout := time.Second * 3
+	conn, err := net.DialTimeout("tcp", "localhost:5001", timeout)
 	if err != nil {
 		return nil, err
 	}
 
-	adc := Adc{baseaddr: base, conn: conn}
+	adc := Adc{
+		baseaddr: base,
+		timeout:  timeout,
+		conn:     conn,
+	}
 	adc.max_counts = 1 << (bits - 1)
 	adc.max_volts = [max_chans]float32{2.048, 2.048, 10.24, 10.24, 10.24, 10.24}
 
@@ -87,7 +96,7 @@ func NewAdc(base uint32, an_sel uint32,
 		uint32(an_sel|bits_val|gain_val))
 
 	// Send the message
-	err = send_msg(conn, buf, &reply)
+	err = send_msg(conn, buf, time.Now().Add(adc.timeout), &reply)
 	if err != nil {
 		return nil, err
 	}
@@ -98,7 +107,7 @@ func NewAdc(base uint32, an_sel uint32,
 		uint32(adc.chans))
 
 	// Send the message
-	err = send_msg(conn, buf, &reply)
+	err = send_msg(conn, buf, time.Now().Add(adc.timeout), &reply)
 	if err != nil {
 		return nil, err
 	}
@@ -132,7 +141,7 @@ func (adc *Adc) ReadCounts(c uint) (int16, error) {
 	var offset uint32 = 2 * (uint32(c) - 1)
 	var reply tsctl.ScalarReply
 	buf, _ := tsctl.PeekMsg(adc.baseaddr+datareg+offset, 16)
-	err := send_msg(adc.conn, buf, &reply)
+	err := send_msg(adc.conn, buf, time.Now().Add(adc.timeout), &reply)
 	if err != nil {
 		return 0, err
 	}
